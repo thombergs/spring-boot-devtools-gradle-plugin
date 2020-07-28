@@ -1,7 +1,11 @@
 plugins {
     `java-gradle-plugin`
     id("org.jetbrains.kotlin.jvm") version "1.3.41"
+    `maven-publish`
 }
+
+group = "io.reflectoring.devtools"
+version = "0.0.1-SNAPSHOT"
 
 repositories {
     jcenter()
