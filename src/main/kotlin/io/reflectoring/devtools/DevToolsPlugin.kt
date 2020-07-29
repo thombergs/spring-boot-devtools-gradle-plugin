@@ -7,17 +7,22 @@ import org.gradle.api.artifacts.UnknownConfigurationException
 
 class DevToolsPlugin : Plugin<Project> {
 
+
     override fun apply(project: Project) {
-        val devConfiguration = addDevelopmentOnlyConfiguration(project)
-        addDevToolsDependency(project, devConfiguration)
+        addDevToolsDependency(project)
     }
 
     /**
      * Adds the dependency to spring-boot-devtools so the user doesn't have to.
+     * <p/>
+     * The dependency is added to the "developmentOnly" configuration that is also
+     * provided by the Spring Boot Gradle plugin, so we re-use that configuration
+     * if it exists already.
      */
-    private fun addDevToolsDependency(project: Project, configuration: Configuration) {
+    private fun addDevToolsDependency(project: Project) {
+        val developmentOnlyConfiguration = addOrCreateConfiguration(project, "developmentOnly")
         val springBootPlugin = project.plugins.findPlugin("org.springframework.boot")
-        val devToolsDependency = configuration.dependencies.find { it.name == "spring-boot-devtools" }
+        val devToolsDependency = developmentOnlyConfiguration.dependencies.find { it.name == "spring-boot-devtools" }
 
         // the project already has the dependency and we're not going to overriding it
         if (devToolsDependency != null) {
@@ -26,23 +31,19 @@ class DevToolsPlugin : Plugin<Project> {
 
         // we're adding the dependency without a version to let the Spring Dependency plugin select the version
         if (springBootPlugin != null) {
-            project.dependencies.add(configuration.name, "org.springframework.boot:spring-boot-devtools")
+            project.dependencies.add(developmentOnlyConfiguration.name, "org.springframework.boot:spring-boot-devtools")
             return
         }
 
         // we're adding the latest version of the dependency
-        project.dependencies.add(configuration.name, "org.springframework.boot:spring-boot-devtools:2.3.2.RELEASE")
+        project.dependencies.add(developmentOnlyConfiguration.name, "org.springframework.boot:spring-boot-devtools:2.3.2.RELEASE")
     }
 
-    /**
-     * Creates the "developmentOnly" configuration if it doesn't already exists. Returns the existing
-     * configuration, if it already exists.
-     */
-    private fun addDevelopmentOnlyConfiguration(project: Project): Configuration {
+    private fun addOrCreateConfiguration(project: Project, configurationName: String): Configuration {
         return try {
-            project.configurations.getByName("developmentOnly");
+            project.configurations.getByName(configurationName);
         } catch (e: UnknownConfigurationException) {
-            project.configurations.create("developmentOnly")
+            project.configurations.create(configurationName)
         }
     }
 
