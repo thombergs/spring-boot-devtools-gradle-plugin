@@ -4,7 +4,7 @@ plugins {
     `maven-publish`
 }
 
-group = "io.reflectoring.devtools"
+group = "io.reflectoring.spring-boot-devtools"
 version = "0.0.1-SNAPSHOT"
 
 repositories {
@@ -14,7 +14,7 @@ repositories {
 gradlePlugin {
     plugins {
         create("simplePlugin") {
-            id = "io.reflectoring.devtools"
+            id = "io.reflectoring.spring-boot-devtools"
             implementationClass = "io.reflectoring.devtools.DevToolsPlugin"
         }
     }
