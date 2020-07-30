@@ -8,11 +8,14 @@ import org.gradle.api.artifacts.ResolvedDependency
 import org.gradle.api.artifacts.UnknownConfigurationException
 import org.gradle.api.tasks.Copy
 import java.io.File
+import java.lang.IllegalStateException
 
 class DevToolsPlugin : Plugin<Project> {
 
+    lateinit var project: Project
 
     override fun apply(project: Project) {
+        this.project = project
         addDevToolsDependency(project)
         val reloadConfiguration = addOrCreateConfiguration(project, "reload")
 
@@ -25,6 +28,7 @@ class DevToolsPlugin : Plugin<Project> {
             }
             createAggregateReloadTask(project, tasks)
         }
+
 
     }
 
@@ -51,13 +55,18 @@ class DevToolsPlugin : Plugin<Project> {
                 val classesFolder = File(it.file.parentFile.parentFile, "classes").absolutePath
                 reloadClassesTask.from(classesFolder)
                 reloadClassesTask.into("build/classes")
+
+                // we assume that the JAR file is in "build/libs"
+                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
+                val dependencyString = toFullDependencyString(dependencyRootDir)
+                // we assume that the module and the main module have the "java" plugin applied
+                reloadClassesTask.dependsOn("${dependencyString}:compileJava")
+                reloadClassesTask.dependsOn("compileJava")
+                return reloadClassesTask
             }
         }
 
-        // we assume that the module and the main module have the "java" plugin applied
-        reloadClassesTask.dependsOn(":${module.module.id.name}:compileJava")
-        reloadClassesTask.dependsOn("compileJava")
-        return reloadClassesTask
+        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
     }
 
     /**
@@ -76,13 +85,24 @@ class DevToolsPlugin : Plugin<Project> {
                 val classesFolder = File(it.file.parentFile.parentFile, "resources").absolutePath
                 reloadResourcesTask.from(classesFolder)
                 reloadResourcesTask.into("build/resources")
+
+                // we assume that the JAR file is in "build/libs"
+                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
+                val dependencyString = toFullDependencyString(dependencyRootDir)
+                // we assume that the module and the main module have the "java" plugin applied
+                reloadResourcesTask.dependsOn("${dependencyString}:processResources")
+                reloadResourcesTask.dependsOn("processResources")
+                return reloadResourcesTask
             }
         }
 
-        // we assume that the module and the main module have the "java" plugin applied
-        reloadResourcesTask.dependsOn(":${module.module.id.name}:processResources")
-        reloadResourcesTask.dependsOn("processResources")
-        return reloadResourcesTask
+        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
+    }
+
+    private fun toFullDependencyString(dependencyRootDir: File): String {
+        val rootDir = project.rootProject.rootDir
+        val relativePath = dependencyRootDir.absolutePath.replaceFirst(rootDir.absolutePath, "")
+        return relativePath.replace("/", ":")
     }
 
     /**
@@ -122,7 +142,3 @@ class DevToolsPlugin : Plugin<Project> {
 
 
 }
-
-open class DevToolsPluginExtension(
-        var projects: List<String>
-)
