@@ -11,6 +11,14 @@ open class DevToolsPluginConfig(
         var modules: NamedDomainObjectContainer<ModuleConfig>
 ) {
 
+    /**
+     * The name of the trigger file. The plugin will create this file in the build folder after all files have
+     * been copied. Default: ".triggerFile".
+     * <p>
+     * Use the same file name to configure the property "devtools.restart.trigger-file" in your application.yml.
+     */
+    var triggerFile: String = ".triggerFile"
+
     fun modules(closure: Closure<ModuleConfig>) {
         modules.configure(closure)
     }

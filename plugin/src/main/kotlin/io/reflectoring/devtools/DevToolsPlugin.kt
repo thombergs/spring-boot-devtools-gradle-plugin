@@ -13,7 +13,9 @@ import java.io.File
 class DevToolsPlugin : Plugin<Project> {
 
     companion object {
-        val EXTENSION_NAME = "reload"
+        const val EXTENSION_NAME = "devtools"
+        const val RESTART_CONFIGURATION_NAME = "restart"
+        const val RESTART_TASK_NAME = "restart"
     }
 
     lateinit var project: Project
@@ -22,7 +24,7 @@ class DevToolsPlugin : Plugin<Project> {
         this.project = project
         createExtension()
 
-        val reloadConfiguration = addOrCreateConfiguration(project, "reload")
+        val reloadConfiguration = addOrCreateConfiguration(project, RESTART_CONFIGURATION_NAME)
 
         project.afterEvaluate {
             addDevToolsDependency(project)
@@ -32,31 +34,30 @@ class DevToolsPlugin : Plugin<Project> {
                 tasks.add(createReloadClassesTaskForModule(dependency))
                 tasks.add(createReloadResourcesTaskForModule(dependency))
             }
-            createAggregateReloadTask(project, tasks)
+            createRestartTask(project, tasks)
         }
 
     }
 
     private fun createExtension() {
         val modules = project.container(ModuleConfig::class.java)
-        val config = DevToolsPluginConfig(modules)
-        project.extensions.add(EXTENSION_NAME, config)
+        project.extensions.create(EXTENSION_NAME, DevToolsPluginConfig::class.java, modules)
     }
 
     private fun getExtension(): DevToolsPluginConfig {
         return project.extensions.findByName(EXTENSION_NAME) as DevToolsPluginConfig
     }
 
-    private fun createAggregateReloadTask(project: Project, tasks: List<Task>) {
-        val reloadTask = project.tasks.create("reload")
-        reloadTask.actions.add(Action {
+    private fun createRestartTask(project: Project, tasks: List<Task>) {
+        val restartTask = project.tasks.create(RESTART_TASK_NAME)
+        restartTask.actions.add(Action {
             touchTriggerFile()
         })
         for (task in tasks) {
-            reloadTask.dependsOn(task)
+            restartTask.dependsOn(task)
         }
-        reloadTask.dependsOn("compileJava")
-        reloadTask.dependsOn("processResources")
+        restartTask.dependsOn("compileJava")
+        restartTask.dependsOn("processResources")
     }
 
     /**
@@ -124,7 +125,8 @@ class DevToolsPlugin : Plugin<Project> {
     }
 
     private fun touchTriggerFile() {
-        val triggerFile = File(project.buildDir, ".triggerFile")
+        val triggerFileName = getExtension().triggerFile
+        val triggerFile = File(project.buildDir, triggerFileName)
         if (!triggerFile.exists()) {
             triggerFile.createNewFile()
         } else {
