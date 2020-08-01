@@ -1,5 +1,6 @@
 package io.reflectoring.devtools
 
+import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -8,42 +9,61 @@ import org.gradle.api.artifacts.ResolvedDependency
 import org.gradle.api.artifacts.UnknownConfigurationException
 import org.gradle.api.tasks.Copy
 import java.io.File
-import java.lang.IllegalStateException
 
 class DevToolsPlugin : Plugin<Project> {
+
+    companion object {
+        val EXTENSION_NAME = "reload"
+    }
 
     lateinit var project: Project
 
     override fun apply(project: Project) {
         this.project = project
-        addDevToolsDependency(project)
+        createExtension()
+
         val reloadConfiguration = addOrCreateConfiguration(project, "reload")
 
         project.afterEvaluate {
+            addDevToolsDependency(project)
             val tasks = mutableListOf<Task>()
             reloadConfiguration.resolve()
             reloadConfiguration.resolvedConfiguration.firstLevelModuleDependencies.forEach { dependency ->
-                tasks.add(createReloadClassesTaskForModule(project, dependency))
-                tasks.add(createReloadResourcesTaskForModule(project, dependency))
+                tasks.add(createReloadClassesTaskForModule(dependency))
+                tasks.add(createReloadResourcesTaskForModule(dependency))
             }
             createAggregateReloadTask(project, tasks)
         }
 
+    }
 
+    private fun createExtension() {
+        val modules = project.container(ModuleConfig::class.java)
+        val config = DevToolsPluginConfig(modules)
+        project.extensions.add(EXTENSION_NAME, config)
+    }
+
+    private fun getExtension(): DevToolsPluginConfig {
+        return project.extensions.findByName(EXTENSION_NAME) as DevToolsPluginConfig
     }
 
     private fun createAggregateReloadTask(project: Project, tasks: List<Task>) {
         val reloadTask = project.tasks.create("reload")
+        reloadTask.actions.add(Action {
+            touchTriggerFile()
+        })
         for (task in tasks) {
             reloadTask.dependsOn(task)
         }
+        reloadTask.dependsOn("compileJava")
+        reloadTask.dependsOn("processResources")
     }
 
     /**
      * Creates a task that compiles the Java files in a given module and then copies them into
      * the build folder of the main module for Spring Boot Dev Tools to pick up for reload.
      */
-    private fun createReloadClassesTaskForModule(project: Project, module: ResolvedDependency): Task {
+    private fun createReloadClassesTaskForModule(module: ResolvedDependency): Task {
         val reloadClassesTask = project.tasks.create("reloadClassesFrom${module.moduleName}", Copy::class.java)
         module.moduleArtifacts.forEach {
             if (it.type == "jar") {
@@ -60,8 +80,10 @@ class DevToolsPlugin : Plugin<Project> {
                 val dependencyRootDir = it.file.parentFile.parentFile.parentFile
                 val dependencyString = toFullDependencyString(dependencyRootDir)
                 // we assume that the module and the main module have the "java" plugin applied
-                reloadClassesTask.dependsOn("${dependencyString}:compileJava")
-                reloadClassesTask.dependsOn("compileJava")
+
+                val moduleConfig = getExtension().getModuleConfig(dependencyString)
+
+                reloadClassesTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.classesTask}")
                 return reloadClassesTask
             }
         }
@@ -73,7 +95,7 @@ class DevToolsPlugin : Plugin<Project> {
      * Creates a task that processes the resources of a given module and then copies them into
      * the build folder of the main module for Spring Boot Dev Tools to pick up for reload.
      */
-    private fun createReloadResourcesTaskForModule(project: Project, module: ResolvedDependency): Task {
+    private fun createReloadResourcesTaskForModule(module: ResolvedDependency): Task {
         val reloadResourcesTask = project.tasks.create("reloadResourcesFrom${module.moduleName}", Copy::class.java)
         module.moduleArtifacts.forEach {
             if (it.file.path.endsWith(".jar")) {
@@ -82,21 +104,32 @@ class DevToolsPlugin : Plugin<Project> {
                 // - we assume the JAR file is in the build/libs folder
                 // - we assume the resources of the module are available in build/resources
                 // - we assume that Spring Boot dev tools is watching the build/resources folder of this project
-                val classesFolder = File(it.file.parentFile.parentFile, "resources").absolutePath
-                reloadResourcesTask.from(classesFolder)
+                val resourcesFolder = File(it.file.parentFile.parentFile, "resources").absolutePath
+                reloadResourcesTask.from(resourcesFolder)
                 reloadResourcesTask.into("build/resources")
 
                 // we assume that the JAR file is in "build/libs"
                 val dependencyRootDir = it.file.parentFile.parentFile.parentFile
                 val dependencyString = toFullDependencyString(dependencyRootDir)
                 // we assume that the module and the main module have the "java" plugin applied
-                reloadResourcesTask.dependsOn("${dependencyString}:processResources")
-                reloadResourcesTask.dependsOn("processResources")
+
+                val moduleConfig = getExtension().getModuleConfig(dependencyString)
+
+                reloadResourcesTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.resourcesTask}")
                 return reloadResourcesTask
             }
         }
 
         throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
+    }
+
+    private fun touchTriggerFile() {
+        val triggerFile = File(project.buildDir, ".triggerFile")
+        if (!triggerFile.exists()) {
+            triggerFile.createNewFile()
+        } else {
+            triggerFile.setLastModified(System.currentTimeMillis())
+        }
     }
 
     private fun toFullDependencyString(dependencyRootDir: File): String {
