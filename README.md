@@ -1,8 +1,12 @@
 # Spring Boot Dev Tools Gradle Plugin
 
-This plugin enables Spring Boot Dev Tools in your Gradle-based project to improve the dev loop when working on your Spring Boot application.
+![CI](https://github.com/thombergs/spring-devtools-gradle-plugin/workflows/CI/badge.svg)
 
-You simply call `./gradlew restart` on your Spring Boot project and the plugin will collect all changed files **from all the Gradle modules your Spring Boot app depends on**. Spring Boot Dev Tools will then restart your Spring Boot application context to make the changes visible in your app without having to do a cold restart.
+This plugin enables [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-devtools) in your Gradle-based project to improve the dev loop when working on your Spring Boot application.
+
+**You simply call `./gradlew restart` on your Spring Boot project and changed files will be visible in your app within a few seconds.** 
+
+The plugin will collect all changed files from all the Gradle modules your Spring Boot app depends on. Spring Boot Dev Tools will then restart your Spring Boot application context to make the changes visible in your app without having to do a cold restart.
 
 ## How does it work?
 
@@ -12,10 +16,10 @@ Apply the plugin to the Gradle module containing the Spring Boot application:
 
 ```groovy
 plugins {
-	id 'org.springframework.boot' version '2.3.2.RELEASE'
-	id 'io.spring.dependency-management' version '1.0.9.RELEASE'
-	id 'java'
-	id 'io.reflectoring.spring-boot-devtools' // <---
+  id 'org.springframework.boot' version '2.3.2.RELEASE'
+  id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+  id 'java'
+  id 'io.reflectoring.spring-boot-devtools' // <---
 }
 ```
 
@@ -24,8 +28,8 @@ Add this to your `application.yml`:
 ```yaml
 devtools:
   restart:
-  trigger-file: .triggerFile
-  additional-paths: build
+    trigger-file: .triggerFile
+    additional-paths: build
 ```
 
 This configures Spring Boot Dev Tools to only restart the Spring Boot app when the file `/build/.triggerFile` changes. This file is touched by the plugin each time it has updated all the changed files.
@@ -71,10 +75,20 @@ If you have a non-standard module that does not have these tasks, you can tell t
 ```groovy
 devtools {
   modules {
-    module1 {                                  // <-- random, unique identifier
-      dependency = ":module1"                  // <-- must be one of the modules in the restart configuration 
-      resourcesTask = "customProcessResources" // <-- this task will be called to update the resources in the class path
-      classesTask = "customCompileJava"        // <-- this task will be called to update the compiled Java classes in the class path
+    // "module1" is a random, but unique identifier for
+    // the module we're configuring.
+    module1 {                                  
+      
+      // Must be one of the modules in the restart configuration.
+      dependency = ":module1"                   
+      
+      // This task will be called to update the resources in the class path.
+      // It's expected to put all changed resources into the folder "build/resources/main".
+      resourcesTask = "customProcessResources"
+
+      // this task will be called to update the compiled Java classes in the class path.
+      // It's expected to put all the changed class files into the folder "build/classes/java/main".
+      classesTask = "customCompileJava"        
     }
   }
 }
