@@ -2,3 +2,4 @@
 **/.gradle
 **/.idea
 /samples/single-module/build.gradle
+/samples/multi-module/app/build.gradle

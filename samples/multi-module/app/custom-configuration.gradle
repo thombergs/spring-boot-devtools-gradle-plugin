@@ -1,0 +1,32 @@
+plugins {
+    id 'org.springframework.boot' version '2.3.2.RELEASE'
+    id 'io.reflectoring.spring-boot-devtools'
+}
+
+dependencies {
+    implementation project(':module1')
+    implementation project(':module2')
+
+    restart project(':module1')
+    restart project(':module2')
+
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+devtools {
+    modules {
+        module1 {
+            dependency = ":module1"
+            resourcesTask = "customProcessResources"
+            classesTask = "customCompileJava"
+        }
+    }
+}
