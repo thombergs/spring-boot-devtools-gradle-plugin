@@ -10,7 +10,11 @@ The plugin will collect all changed files from all the Gradle modules your Sprin
 
 ## How does it work?
 
-### Single-module builds
+The [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-devtools) can restart a Spring Boot application automatically when the classpath of the application changes. 
+
+This plugin takes advantage of that and copies all changed files into the `build` folder of the Spring Boot app, which feeds into the classpath if you start the app with `./gradlew bootrun`. 
+
+### Apply the plugin
 
 Apply the plugin to the Gradle module containing the Spring Boot application:
 
@@ -23,6 +27,10 @@ plugins {
 }
 ```
 
+You don't need to specify the dependency to the Spring Boot Dev Tools, the plugin will take care of that.
+
+### Configure a trigger file
+
 Add this to your `application.yml`:
 
 ```yaml
@@ -34,23 +42,30 @@ devtools:
 
 This configures Spring Boot Dev Tools to only restart the Spring Boot app when the file `/build/.triggerFile` changes. This file is touched by the plugin each time it has updated all the changed files.
 
-Start your Spring Boot app with `./gradlew bootrun` and run `./gradlew restart` any time you have changed a Java file or a resources file. The Spring Boot app should restart within a couple of seconds and if you have a Live Reload plugin installed in your browser, the page should refresh and make the changes visible.
+### Start your Spring Boot app 
+Start your Spring Boot app with `./gradlew bootrun`.
+
+### Restart after changing files 
+Run `./gradlew restart` any time you have changed a Java file or a resources file. The Spring Boot app should restart within a couple of seconds and if you have a [Live Reload plugin](http://livereload.com/) installed in your browser, the page should refresh and make the changes visible.
 
 Have a look at the [single-module sample](/samples/single-module/) to see the plugin in action for Spring Boot apps that consist of a single Gradle module only.
 
-### Multi-module builds
+### Configure multi-module builds
 
-The support for single-module builds is pretty good with only using Spring Boot Dev Tools so you wouldn't really need this plugin. **Where this plugin really shines is in its support for multi-module Gradle builds**.
+What if you have a Gradle module for your Spring Boot app and one or more Gradle modules that contribute to its classpath? This was the main reason for developing this plugin!
 
 The setup steps are the same as for a single module (see above), plus you have to specify which of the contributing modules you want to trigger a restart.
 
-In your `build.gradle`, add these modules to the `restart` configuration in your `dependencies` section:
+In the `build.gradle` of the Gradle module with the Spring Boot app, add the modules to the `restart` configuration in your `dependencies` section:
 
 ```groovy
 dependencies {
-  implementation project(':module1')
+ 
+  // these modules contribute a JAR file to the Spring Boot app 
+  implementation project(':module1') 
   implementation project(':module2')
 
+  // this enables auto-restart for changes in one of the modules
   restart project(':module1') // <---
   restart project(':module2') // <---
 
@@ -64,42 +79,55 @@ The more modules in the `restart` configuration, the longer each restart will ta
 
 Have a look at the [multi-module sample](/samples/multi-module/) to see the plugin in action for Spring Boot apps that consist of multiple modules.
 
-### Custom tasks
+### Configuration options
 
-The above works nicely for any standard Gradle module that has a `compileJava` and a `processResources` task (i.e. any module that applies the `java` plugin).
-
-Both tasks will be called before a restart to update the class path of the Spring Boot application with updated files.
-
-If you have a non-standard module that does not have these tasks, you can tell the Spring Boot Dev Tools plugin to call other tasks instead. You can configure this in the `devtools` closure in `build.gradle`:
+The above works without any configuration, but if the defaults don't suit you, use the `devtools` closure in your `build.gradle` file to override them:
 
 ```groovy
 devtools {
+  
+  // Change the name of the trigger file. The plugin creates this file in the "build" folder of the
+  // main module after each call of the "restart" task. Make sure to configure the same trigger file
+  // in devtools.restart.trigger-file in your application.yml or application.properties file.
+  triggerFile = ".triggerFile"
+
   modules {
-    // "module1" is a random, but unique identifier for
+    // "module1" is a random, but unique, identifier for
     // the module we're configuring.
     module1 {                                  
       
       // Must be one of the modules in the restart configuration.
       dependency = ":module1"                   
       
-      // This task will be called to update the resources in the class path.
+      // This task will be called on the module to update the resource files in the class path.
       // It's expected to put all changed resources into the folder "build/resources/main".
-      resourcesTask = "customProcessResources"
+      resourcesTask = "processResources"
 
-      // this task will be called to update the compiled Java classes in the class path.
+      // this task will be called on the module to update the compiled Java classes in the class path.
       // It's expected to put all the changed class files into the folder "build/classes/java/main".
-      classesTask = "customCompileJava"        
+      classesTask = "compileJava"        
     }
   }
 }
 ```
 
-### Integration with Node projects
+### Integrate with Node projects
 
-One use case for custom tasks is a Gradle module that contains a Javascript project. The Javascript project uses Node to build a set of static Javascript and CSS files that we want to use in our Spring Boot application.
+One use case for custom tasks in `resourcesTask` and `classesTask` is a Gradle module that contains a Javascript project. The Javascript project uses Node to build a set of static Javascript and CSS files that we want to use in our Spring Boot application.
 
 The Gradle module packages these resources in a JAR file which contributes to the class path of the Spring Boot application. 
 
 For a restart, we don't want to package the JAR file, but instead only update the resources in the `build/resources` folder for the Spring Boot Dev Tools Plugin to pick up.
 
 We can now create a custom Gradle task that call Node (for example with the [Gradle Node Plugin](https://github.com/node-gradle/gradle-node-plugin)) to process the changed resources and copy the result into the `build` folder. If we configure that task as the `resourcesTask` as shown above, the Spring Boot Dev Tools Plugin will then trigger a restart. 
+
+## Limitations
+
+The plugin has been tested with single- and multi-module Gradle builds in a pretty standard configuration. The plugin currently works with these assumptions:
+
+* the contributing modules have the `java` plugin installed
+* the contributing modules produce a single JAR file in `build/libs`
+* the build folder of the modules is `build`
+* ... and probably a bunch of other assumptions that I haven't identified, yet.
+
+Feel free to open issues with feature requests or pull requests with improvements!
