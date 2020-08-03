@@ -55,6 +55,8 @@ Start your Spring Boot app with `./gradlew bootrun`.
 ### Restart after changing files 
 Run `./gradlew restart` any time you have changed a Java file or a resources file. The Spring Boot app should restart within a couple of seconds and if you have a [Live Reload plugin](http://livereload.com/) installed in your browser, the page should refresh and make the changes visible.
 
+Configure this task to a hot key in your IDE to trigger the restart comfortably from within the IDE.
+
 ### Configure multi-module builds
 
 What if you have a Gradle module for your Spring Boot app and one or more Gradle modules that contribute to its classpath? This was the main reason for developing this plugin!
