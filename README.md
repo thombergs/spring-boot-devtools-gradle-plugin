@@ -6,13 +6,20 @@ This plugin enables [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/d
 
 **You simply call `./gradlew restart` on your Spring Boot project and changed files will be visible in your app within a few seconds.** Since it relies on Gradle, it works with any IDE (or, more precisely, without an IDE).
 
-The plugin will collect all changed files from all the Gradle modules your Spring Boot app depends on. Spring Boot Dev Tools will then restart your Spring Boot application context to make the changes visible in your app without having to do a cold restart.
+The plugin will collect all changed files **from all the Gradle modules your Spring Boot app depends on**. Spring Boot Dev Tools will then restart your Spring Boot application context to make the changes visible in your app without having to do a cold restart.
 
 ## How does it work?
 
 The [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-devtools) can restart a Spring Boot application automatically when the classpath of the application changes. 
 
-This plugin takes advantage of that and copies all changed files into the `build` folder of the Spring Boot app, which feeds into the classpath if you start the app with `./gradlew bootrun`. 
+This plugin takes advantage of that and copies all changed files into the `build` folder of the Spring Boot app, which feeds into the classpath if you start the app with `./gradlew bootrun`. Spring Boot Dev Tools will then take over and restart the app.
+
+### Samples
+
+Look at the sample projects to see it in action:
+
+* [single-module](samples/single-module/)
+* [multi-module](samples/multi-module)
 
 ### Apply the plugin
 
@@ -47,8 +54,6 @@ Start your Spring Boot app with `./gradlew bootrun`.
 
 ### Restart after changing files 
 Run `./gradlew restart` any time you have changed a Java file or a resources file. The Spring Boot app should restart within a couple of seconds and if you have a [Live Reload plugin](http://livereload.com/) installed in your browser, the page should refresh and make the changes visible.
-
-Have a look at the [single-module sample](/samples/single-module/) to see the plugin in action for Spring Boot apps that consist of a single Gradle module only.
 
 ### Configure multi-module builds
 
@@ -123,7 +128,7 @@ We can now create a custom Gradle task that call Node (for example with the [Gra
 
 ## Limitations
 
-The plugin has been tested with single- and multi-module Gradle builds in a pretty standard configuration. The plugin currently works with these assumptions:
+The plugin has been tested with single- and multi-module Gradle builds in a pretty standard configuration that should cover the most common cases. The plugin currently works with these assumptions:
 
 * the contributing modules have the `java` plugin installed
 * the contributing modules produce a single JAR file in `build/libs`
