@@ -4,7 +4,7 @@
 
 This plugin enables [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-devtools) in your Gradle-based project to improve the dev loop when working on your Spring Boot application.
 
-**You simply call `./gradlew restart` on your Spring Boot project and changed files will be visible in your app within a few seconds.** 
+**You simply call `./gradlew restart` on your Spring Boot project and changed files will be visible in your app within a few seconds.** Since it relies on Gradle, it works with any IDE (or, more precisely, without an IDE).
 
 The plugin will collect all changed files from all the Gradle modules your Spring Boot app depends on. Spring Boot Dev Tools will then restart your Spring Boot application context to make the changes visible in your app without having to do a cold restart.
 
