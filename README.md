@@ -30,7 +30,7 @@ plugins {
   id 'org.springframework.boot' version '2.3.2.RELEASE'
   id 'io.spring.dependency-management' version '1.0.9.RELEASE'
   id 'java'
-  id 'io.reflectoring.spring-boot-devtools' // <---
+  id 'io.reflectoring.spring-boot-devtools' version '0.0.1' // <---
 }
 ```
 
