@@ -86,6 +86,8 @@ The more modules in the `restart` configuration, the longer each restart will ta
 
 Have a look at the [multi-module sample](/samples/multi-module/) to see the plugin in action for Spring Boot apps that consist of multiple modules.
 
+If you're seeing strange classloading issues it's probably due to the two classloaders Spring Boot Dev Tools is using. In that case, make sure that you add all contributing JAR files to the restart class loader by listing them in `META-INF/spring-devtools.properties` ([see an example](samples/multi-module/app/src/main/resources/META-INF/spring-devtools.properties)).
+
 ### Configuration options
 
 The above works without any configuration, but if the defaults don't suit you, use the `devtools` closure in your `build.gradle` file to override them:
