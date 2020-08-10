@@ -14,14 +14,13 @@ class BuildTaskAssert(actual: BuildTask?) : AbstractAssert<BuildTaskAssert, Buil
     }
 
     fun hasAnyOutcome(vararg expectedOutcomes: TaskOutcome): BuildTaskAssert {
-        isNotNull
-        val actualOutcome = actual.outcome
+        val actualOutcome = actual?.outcome
         for (expectedOutcome in expectedOutcomes) {
             if (Objects.equals(actualOutcome, expectedOutcome)) {
                 return this
             }
         }
-        failWithMessage("Task has outcome $actualOutcome, but expected one of these: $expectedOutcomes")
+        failWithMessage("Task has outcome $actualOutcome, but expected one of these: ${expectedOutcomes.map { it.name }}")
         return this
     }
 

@@ -10,6 +10,9 @@ dependencies {
     restart project(':module1')
     restart project(':module2')
 
+    reload project(':module1')
+    reload project(':module2')
+
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
@@ -25,8 +28,7 @@ devtools {
     modules {
         module1 {
             dependency = ":module1"
-            resourcesTask = "customProcessResources"
-            classesTask = "customCompileJava"
+            reloadTask = "customProcessResources"
         }
     }
 }
