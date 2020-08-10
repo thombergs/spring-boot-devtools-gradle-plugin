@@ -44,8 +44,9 @@ class Files(private val debug: Boolean = false) {
     fun assertTargetFilesExist() {
         for (file in targetFiles) {
             assertThat(file.exists())
-                    .isTrue()
                     .withFailMessage("Expected file ${file.filepath} to exist!")
+                    .isTrue()
+
 
         }
         cleanup()

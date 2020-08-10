@@ -54,16 +54,12 @@ open class ModuleConfig(
     var dependency: String = "default"
 
     /**
-     * The task that creates the resources files that should be updated by Spring Boot Dev Tools.
-     * By default, this is the "processResources" task, which puts the resource files into the "build/resources" folder.
+     * An additional task that should be called for this module before triggering a reload in Spring Boot Dev Tools.
+     * The task is expected to contribute static resources to the "build/classes" folder of the module.
+     * By default, a task named "reload" will be created that copies all files from "src/main/resources/static" and
+     * "src/main/resources/templates". The task defined here will be called in addition to the default task.
      */
-    var resourcesTask: String? = "processResources"
-
-    /**
-     * The task that creates the class files that should be updated by Spring Boot Dev Tools.
-     * By default, this is the "compileJava" task, which puts the class files into the "build/classes" folder.
-     */
-    var classesTask: String? = "compileJava"
+    var reloadTask: String? = null
 
     constructor(name: String, dependency: String) : this(name) {
         this.dependency = dependency

@@ -16,6 +16,19 @@ class DevToolsPlugin : Plugin<Project> {
         const val EXTENSION_NAME = "devtools"
         const val RESTART_CONFIGURATION_NAME = "restart"
         const val RESTART_TASK_NAME = "restart"
+        const val RELOAD_CONFIGURATION_NAME = "reload"
+        const val RELOAD_TASK_NAME = "reload"
+
+        // Default list of folders that Spring Boot Dev Tools will not trigger a restart for
+        // when a file in them changes.
+        val RESOURCES_EXCLUDED_FROM_RESTART = listOf(
+                "/META-INF/maven/**",
+                "/META-INF/resources/**",
+                "/resources/**",
+                "/static/**",
+                "/public/**",
+                "/templates/**"
+        )
     }
 
     lateinit var project: Project
@@ -24,19 +37,137 @@ class DevToolsPlugin : Plugin<Project> {
         this.project = project
         createExtension()
 
-        val reloadConfiguration = addOrCreateConfiguration(project, RESTART_CONFIGURATION_NAME)
+        val restartConfiguration = addOrCreateConfiguration(project, RESTART_CONFIGURATION_NAME)
+        val reloadConfiguration = addOrCreateConfiguration(project, RELOAD_CONFIGURATION_NAME)
 
         project.afterEvaluate {
             addDevToolsDependency(project)
-            val tasks = mutableListOf<Task>()
-            reloadConfiguration.resolve()
-            reloadConfiguration.resolvedConfiguration.firstLevelModuleDependencies.forEach { dependency ->
-                tasks.add(createReloadClassesTaskForModule(dependency))
-                tasks.add(createReloadResourcesTaskForModule(dependency))
-            }
-            createRestartTask(project, tasks)
+            val reloadTask = addReloadTask(reloadConfiguration, project)
+            addRestartTask(restartConfiguration, project, reloadTask)
         }
 
+    }
+
+    private fun addRestartTask(restartConfiguration: Configuration, project: Project, reloadTask: Task) {
+        val subTasks = mutableListOf(reloadTask)
+        restartConfiguration.resolve()
+        restartConfiguration.resolvedConfiguration.firstLevelModuleDependencies.forEach { dependency ->
+            subTasks.add(createRestartModuleTask(dependency))
+        }
+        createRestartTask(project, subTasks)
+    }
+
+    private fun addReloadTask(reloadConfiguration: Configuration, project: Project) : Task{
+        val subTasks = mutableListOf<Task>()
+        reloadConfiguration.resolve()
+        reloadConfiguration.resolvedConfiguration.firstLevelModuleDependencies.forEach { dependency ->
+            subTasks.add(createReloadModuleTask(dependency))
+        }
+        return createReloadTask(project, subTasks)
+    }
+
+
+    /**
+     * Creates the "reload" task for the main module that contains the Spring Boot application.
+     * The reload task updates all static resources that don't need a restart and creates a trigger file
+     * to trigger Spring Boot Dev Tools for a reload.
+     */
+    private fun createReloadTask(project: Project, tasks: List<Task>) : Task{
+        val reloadTask = project.tasks.create(RELOAD_TASK_NAME, Copy::class.java)
+
+        reloadTask.from("src/main/resources")
+        reloadTask.into("build/resources/main")
+
+        for(folder in RESOURCES_EXCLUDED_FROM_RESTART){
+            reloadTask.include(folder)
+        }
+
+        println("CREATE RELOAD TASK")
+
+        for (task in tasks) {
+            println("ADDING TASK $task")
+            reloadTask.dependsOn(task)
+        }
+        reloadTask.actions.add(Action {
+            touchTriggerFile()
+        })
+
+        return reloadTask
+    }
+
+    /**
+     * Creates the "restart" task for the main module that contains the Spring Boot application.
+     * The restart task compiles the main modules sources, calls the restart tasks for all sub modules,
+     * and creates a trigger file to trigger Spring Boot Dev Tools.
+     */
+    private fun createRestartTask(project: Project, tasks: List<Task>) {
+        val restartTask = project.tasks.create(RESTART_TASK_NAME)
+        restartTask.dependsOn("classes")
+        for (task in tasks) {
+            restartTask.dependsOn(task)
+        }
+        restartTask.actions.add(Action {
+            touchTriggerFile()
+        })
+    }
+
+    private fun createRestartModuleTask(module: ResolvedDependency): Task {
+        val restartModuleTask = project.tasks.create("restart-${module.moduleName}", Copy::class.java)
+        module.moduleArtifacts.forEach {
+            if (it.type == "jar") {
+                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
+
+                val classesSourceFolder = "${dependencyRootDir}/build/classes"
+                val classesTargetFolder = "${project.buildDir}/classes"
+
+                restartModuleTask.from(classesSourceFolder)
+                restartModuleTask.into(classesTargetFolder)
+
+                val dependencyString = toFullDependencyString(dependencyRootDir)
+                val moduleConfig = getExtension().getModuleConfig(dependencyString)
+
+                // we always want to run the "classes" task when restarting
+                restartModuleTask.dependsOn("${moduleConfig.dependency}:classes")
+
+                // if there is a custom reload task, we want to run that, too, when restarting
+                moduleConfig.reloadTask?.let {
+                    restartModuleTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.reloadTask}")
+                }
+                return restartModuleTask
+            }
+        }
+
+        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
+    }
+
+    private fun createReloadModuleTask(module: ResolvedDependency): Task {
+        val reloadModuleTask = project.tasks.create("reload-${module.moduleName}", Copy::class.java)
+        module.moduleArtifacts.forEach {
+            if (it.type == "jar") {
+                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
+
+                val resourcesSourceFolder = "${dependencyRootDir}/src/main/resources"
+                val resourcesTargetFolder = "${project.buildDir}/resources/main"
+
+                reloadModuleTask.from(resourcesSourceFolder)
+                reloadModuleTask.into(resourcesTargetFolder)
+
+                for(folder in RESOURCES_EXCLUDED_FROM_RESTART){
+                    reloadModuleTask.include(folder)
+                }
+
+                val dependencyString = toFullDependencyString(dependencyRootDir)
+                val moduleConfig = getExtension().getModuleConfig(dependencyString)
+
+                // if there is a custom reload task, we want to run that when reloading
+                moduleConfig.reloadTask?.let {
+                    reloadModuleTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.reloadTask}")
+                }
+                return reloadModuleTask
+            }
+        }
+
+        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
     }
 
     private fun createExtension() {
@@ -46,82 +177,6 @@ class DevToolsPlugin : Plugin<Project> {
 
     private fun getExtension(): DevToolsPluginConfig {
         return project.extensions.findByName(EXTENSION_NAME) as DevToolsPluginConfig
-    }
-
-    private fun createRestartTask(project: Project, tasks: List<Task>) {
-        val restartTask = project.tasks.create(RESTART_TASK_NAME)
-        restartTask.actions.add(Action {
-            touchTriggerFile()
-        })
-        for (task in tasks) {
-            restartTask.dependsOn(task)
-        }
-        restartTask.dependsOn("compileJava")
-        restartTask.dependsOn("processResources")
-    }
-
-    /**
-     * Creates a task that compiles the Java files in a given module and then copies them into
-     * the build folder of the main module for Spring Boot Dev Tools to pick up for reload.
-     */
-    private fun createReloadClassesTaskForModule(module: ResolvedDependency): Task {
-        val reloadClassesTask = project.tasks.create("reloadClassesFrom${module.moduleName}", Copy::class.java)
-        module.moduleArtifacts.forEach {
-            if (it.type == "jar") {
-                // A lot of assumptions here:
-                // - we assume a single JAR dependency per module
-                // - we assume the JAR file is in the build/libs folder
-                // - we assume classes of the module have been compiled to build/classes
-                // - we assume that Spring Boot dev tools is watching the build/classes folder of this project
-                val classesFolder = File(it.file.parentFile.parentFile, "classes").absolutePath
-                reloadClassesTask.from(classesFolder)
-                reloadClassesTask.into("build/classes")
-
-                // we assume that the JAR file is in "build/libs"
-                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
-                val dependencyString = toFullDependencyString(dependencyRootDir)
-                // we assume that the module and the main module have the "java" plugin applied
-
-                val moduleConfig = getExtension().getModuleConfig(dependencyString)
-
-                reloadClassesTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.classesTask}")
-                return reloadClassesTask
-            }
-        }
-
-        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
-    }
-
-    /**
-     * Creates a task that processes the resources of a given module and then copies them into
-     * the build folder of the main module for Spring Boot Dev Tools to pick up for reload.
-     */
-    private fun createReloadResourcesTaskForModule(module: ResolvedDependency): Task {
-        val reloadResourcesTask = project.tasks.create("reloadResourcesFrom${module.moduleName}", Copy::class.java)
-        module.moduleArtifacts.forEach {
-            if (it.file.path.endsWith(".jar")) {
-                // A lot of assumptions here:
-                // - we assume a single JAR dependency per module
-                // - we assume the JAR file is in the build/libs folder
-                // - we assume the resources of the module are available in build/resources
-                // - we assume that Spring Boot dev tools is watching the build/resources folder of this project
-                val resourcesFolder = File(it.file.parentFile.parentFile, "resources").absolutePath
-                reloadResourcesTask.from(resourcesFolder)
-                reloadResourcesTask.into("build/resources")
-
-                // we assume that the JAR file is in "build/libs"
-                val dependencyRootDir = it.file.parentFile.parentFile.parentFile
-                val dependencyString = toFullDependencyString(dependencyRootDir)
-                // we assume that the module and the main module have the "java" plugin applied
-
-                val moduleConfig = getExtension().getModuleConfig(dependencyString)
-
-                reloadResourcesTask.dependsOn("${moduleConfig.dependency}:${moduleConfig.resourcesTask}")
-                return reloadResourcesTask
-            }
-        }
-
-        throw IllegalStateException("Module ${module.moduleName} does not publish a JAR file!")
     }
 
     private fun touchTriggerFile() {
