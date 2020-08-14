@@ -1,6 +1,7 @@
 # Spring Boot Dev Tools Gradle Plugin
 
 ![CI](https://github.com/thombergs/spring-devtools-gradle-plugin/workflows/CI/badge.svg)
+[![GitHub release](https://img.shields.io/github/release/thombergs/spring-boot-devtools-gradle-plugin.svg)](https://GitHub.com/thombergs/spring-boot-devtools-gradle-plugin/releases/)
 
 This plugin enables [Spring Boot Dev Tools](https://docs.spring.io/spring-boot/docs/current/reference/html/using-spring-boot.html#using-boot-devtools) in your Gradle-based project to improve the dev loop when working on your Spring Boot application.
 
