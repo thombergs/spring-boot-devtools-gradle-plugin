@@ -12,7 +12,7 @@ pluginBundle {
 }
 
 group = "io.reflectoring.spring-boot-devtools"
-version = "0.0.2"
+version = "0.0.3"
 
 repositories {
     jcenter()
@@ -27,6 +27,10 @@ gradlePlugin {
             description = "Accelerate the dev loop for your single- or multi-module Spring Boot application."
         }
     }
+}
+
+tasks.register("printVersion") {
+    println(project.version)
 }
 
 dependencies {
