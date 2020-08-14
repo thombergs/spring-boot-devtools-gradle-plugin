@@ -82,10 +82,8 @@ class DevToolsPlugin : Plugin<Project> {
             reloadTask.include(folder)
         }
 
-        println("CREATE RELOAD TASK")
 
         for (task in tasks) {
-            println("ADDING TASK $task")
             reloadTask.dependsOn(task)
         }
         reloadTask.actions.add(Action {
