@@ -35,7 +35,7 @@ jobs:
     - name: "Set PLUGIN_VERSION environment variable"
       run: |
         cd plugin
-        ::set-env name=PLUGIN_VERSION::$(./gradlew --quiet printVersion)
+        echo "::set-env name=PLUGIN_VERSION::$(./gradlew --quiet printVersion)"
 
     - name: "Publish to Gradle Plugin Portal"
       if: github.ref == 'refs/heads/release'
