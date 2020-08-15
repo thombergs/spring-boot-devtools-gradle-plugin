@@ -12,6 +12,8 @@ This plugin brings the following tasks:
 
 Run these tasks while you have started a Spring Boot application via `./gradlew bootrun` and the changes you made will become visible in the application after a couple seconds. A reload is quicker than a restart because it doesn't need to restart the Spring application context.
 
+If you want a more in-depth explanation about what Spring Boot Dev Tools does to appreciate what this Gradle plugin is doing for you, have a look at the article [Optimize Your Dev Loop with Spring Boot Dev Tools](https://reflectoring.io/spring-boot-dev-tools/).
+
 ## Configuration
 
 ### Apply the plugin
